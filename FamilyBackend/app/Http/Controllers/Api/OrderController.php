@@ -106,7 +106,7 @@ class OrderController extends Controller
     public function myOrders(Request $request)
     {
         try {
-            $user = $request->user();
+            $user = $request->attributes->get('khachhang');
             if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
             // Get orders for this customer

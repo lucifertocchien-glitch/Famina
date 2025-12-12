@@ -15,7 +15,7 @@ class DonBanHang extends Model
     protected $fillable = [
         'MaDon', 'NgayDat', 'TongTienHang', 'TongThueVAT', 'TongChietKhau',
         'TongThanhToan', 'HinhThucTT', 'TrangThai', 'LoaiDon', 'MaKH', 'NguoiBan',
-        'MaKM_ApDung', 'MaSP_ApDung'
+        'MaKM_ApDung', 'MaSP_ApDung', 'SoLuong'
     ];
 
     public function chiTiet()

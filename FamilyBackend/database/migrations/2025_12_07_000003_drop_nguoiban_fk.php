@@ -9,7 +9,11 @@ return new class extends Migration
     {
         // Drop the FK constraint that requires NguoiBan to reference NHAN_VIEN
         // This allows customer orders to be created without assigning a staff member initially
-        DB::statement('ALTER TABLE DON_BAN_HANG DROP FOREIGN KEY FK_DonBan_NhanVien');
+        $fkExists = DB::select("SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+            WHERE TABLE_NAME = 'DON_BAN_HANG' AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND CONSTRAINT_NAME = 'FK_DonBan_NhanVien'");
+        if ($fkExists) {
+            DB::statement('ALTER TABLE DON_BAN_HANG DROP FOREIGN KEY FK_DonBan_NhanVien');
+        }
     }
 
     public function down()

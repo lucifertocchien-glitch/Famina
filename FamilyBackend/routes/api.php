@@ -19,7 +19,7 @@ Route::group(['middleware' => ['addcors']], function () {
 
     Route::middleware([ApiAuth::class])->group(function () {
         Route::get('/gio-hang', [CartController::class, 'index']);
-        Route::post('/gio-hang/them', [CartController::class, 'add']);
+        Route::post('/don-dat-hang/them', [CartController::class, 'add']);
         Route::delete('/gio-hang/{id}', [CartController::class, 'remove']);
 
         Route::post('/orders', [OrderController::class, 'store']);
