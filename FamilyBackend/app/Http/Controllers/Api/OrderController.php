@@ -12,17 +12,23 @@ use App\Models\DonBanHang;
 
 class OrderController extends Controller
 {
+// Thay thế function store cũ bằng đoạn này:
+
     public function store(Request $request)
     {
-        // 1. Validate dữ liệu từ JS
+        // 1. Validate dữ liệu từ JS (Thêm validate address)
         $request->validate([
             'email' => 'required|email',
             'cart' => 'required|array|min:1',
-            'cart.*.product_code' => 'required|string', // JS gửi key này
-            'cart.*.quantity' => 'required|integer|min:1'
+            'cart.*.product_code' => 'required|string',
+            'cart.*.quantity' => 'required|integer|min:1',
+            'address' => 'required|string|min:5', // <-- BẮT BUỘC ĐỊA CHỈ
+        ], [
+            'address.required' => 'Vui lòng nhập địa chỉ giao hàng.',
+            'address.min' => 'Địa chỉ quá ngắn, vui lòng nhập chi tiết hơn.'
         ]);
 
-        // 2. Tìm khách hàng (Dùng email hoặc từ Token)
+        // 2. Tìm khách hàng
         $user = $request->attributes->get('khachhang');
         if (!$user) {
             $user = KhachHang::where('Email', $request->email)->first();
@@ -32,22 +38,27 @@ class OrderController extends Controller
             return response()->json(['message' => 'Khách hàng không tồn tại (Email chưa đăng ký)'], 404);
         }
 
+        // --- LOGIC MỚI: CẬP NHẬT ĐỊA CHỈ KHÁCH HÀNG ---
+        // Vì bảng DON_BAN_HANG Legacy không có cột địa chỉ, ta lưu vào hồ sơ khách
+        if ($request->has('address') && $user->DiaChi !== $request->address) {
+            $user->DiaChi = $request->address;
+            $user->save();
+        }
+
         DB::beginTransaction();
         try {
             // 3. Tạo Mã Đơn Hàng
             $maDon = 'DON' . time() . strtoupper(Str::random(3));
-
             $tongTien = 0;
 
-            // 4. Tạo Header Đơn Hàng (Trạng thái mặc định ChoXuLy)
-            // Lưu ý: Dùng DB::table để an toàn với Legacy DB
+            // 4. Tạo Header Đơn Hàng
             DB::table('DON_BAN_HANG')->insert([
                 'MaDon' => $maDon,
                 'NgayDat' => now(),
-                'TongTienHang' => 0, // Sẽ update sau
+                'TongTienHang' => 0,
                 'TongThanhToan' => 0,
                 'HinhThucTT' => 'COD',
-                'TrangThai' => 'ChoXuLy', // Quan trọng: Để Admin thấy được
+                'TrangThai' => 'ChoXuLy',
                 'LoaiDon' => 'BanLe',
                 'MaKH' => $user->MaKH,
                 'NguoiBan' => 'ONLINE'
@@ -72,7 +83,6 @@ class OrderController extends Controller
                 $thanhTien = $donGia * $qty;
                 $tongTien += $thanhTien;
 
-                // Insert CT_DON_BAN
                 DB::table('CT_DON_BAN')->insert([
                     'MaDon' => $maDon,
                     'MaSP' => $product->MaSP,

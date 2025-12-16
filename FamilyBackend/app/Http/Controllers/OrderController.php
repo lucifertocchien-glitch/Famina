@@ -11,6 +11,15 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    // Định nghĩa quy trình xử lý đơn hàng chuẩn
+    // Key là index, Value là giá trị trong DB
+    protected $orderFlow = [
+        'chờ_xác_nhận',
+        'đã_xác_nhận',
+        'đang_giao',
+        'đã_giao'
+    ];
+
     public function index(Request $request)
     {
         $q = $request->query('q');
@@ -61,7 +70,7 @@ class OrderController extends Controller
                 'MaKH' => $data['MaKH'],
                 'NguoiBan' => $data['NguoiBan'],
                 'HinhThucTT' => $data['HinhThucTT'] ?? 'Tiền mặt',
-                'TrangThai' => 'chờ_xác_nhận',
+                'TrangThai' => 'chờ_xác_nhận', // Luôn bắt đầu từ bước 1
                 'TongTienHang' => 0,
                 'TongThueVAT' => 0,
                 'TongChietKhau' => 0,
@@ -74,7 +83,7 @@ class OrderController extends Controller
                     throw new \Exception('Sản phẩm '.$item['MaSP'].' không đủ tồn kho');
                 }
 
-                $thue_vat = ($item['DonGia'] * $item['SoLuong']) * 0.1;
+                $thue_vat = ($item['DonGia'] * $item['SoLuong']) * 0.1; // VAT 10% giả định
                 $chiet_khau = 0;
                 $thanh_tien = ($item['DonGia'] * $item['SoLuong']) + $thue_vat - $chiet_khau;
 
@@ -92,6 +101,7 @@ class OrderController extends Controller
                 $tong_thue_vat += $thue_vat;
                 $tong_chiet_khau += $chiet_khau;
 
+                // Trừ kho ngay khi tạo đơn
                 $sp->TonKho -= $item['SoLuong'];
                 $sp->save();
             }
@@ -116,6 +126,7 @@ class OrderController extends Controller
     {
         $don = DonBanHang::findOrFail($id);
         $chi_tiet = DonBanHangChiTiet::where('MaDon', $id)->get();
+        // Truyền thêm biến orderFlow để View biết được các bước
         return view('admin.orders.detail', compact('don', 'chi_tiet'));
     }
 
@@ -128,40 +139,85 @@ class OrderController extends Controller
     public function update(Request $request, $id)
     {
         $don = DonBanHang::findOrFail($id);
+        
         $data = $request->validate([
             'TrangThai' => 'required|string|in:chờ_xác_nhận,đã_xác_nhận,đang_giao,đã_giao,đã_hủy',
             'HinhThucTT' => 'nullable|string|max:50',
         ]);
 
-        if ($data['TrangThai'] === 'đã_hủy' && $don->TrangThai !== 'đã_hủy') {
-            foreach ($don->chiTiet as $ct) {
-                $sp = SanPham::find($ct->MaSP);
-                if ($sp) {
-                    $sp->TonKho += $ct->SoLuong;
-                    $sp->save();
+        $currentStatus = $don->TrangThai;
+        $newStatus = $data['TrangThai'];
+
+        // --- START LOGIC STATE MACHINE ---
+        
+        // 1. Nếu là trạng thái HỦY
+        if ($newStatus === 'đã_hủy') {
+            // Chỉ cho phép hủy nếu đơn chưa giao cho shipper (tức là chưa đến bước 'đang_giao')
+            // 'đang_giao' là index 2. Nếu index >= 2 thì không được hủy.
+            $currentIndex = array_search($currentStatus, $this->orderFlow);
+            if ($currentIndex !== false && $currentIndex >= 2) {
+                 return back()->withErrors(['error' => 'Đơn hàng đang giao hoặc đã giao, không thể hủy!']);
+            }
+
+            // Nếu chưa hủy thì hoàn kho
+            if ($currentStatus !== 'đã_hủy') {
+                foreach ($don->chiTiet as $ct) {
+                    $sp = SanPham::find($ct->MaSP);
+                    if ($sp) {
+                        $sp->TonKho += $ct->SoLuong;
+                        $sp->save();
+                    }
+                }
+            }
+        } 
+        // 2. Nếu là chuyển trạng thái TIẾN LÊN
+        else {
+            $currentIndex = array_search($currentStatus, $this->orderFlow);
+            $newIndex = array_search($newStatus, $this->orderFlow);
+
+            // Kiểm tra tính hợp lệ trong quy trình
+            if ($currentIndex !== false && $newIndex !== false) {
+                // Không cho phép quay lui (newIndex < currentIndex)
+                if ($newIndex < $currentIndex) {
+                    return back()->withErrors(['error' => 'Không thể quay ngược trạng thái đơn hàng!']);
+                }
+                // Không cho phép nhảy cóc (chỉ được tăng 1 bước)
+                if ($newIndex > $currentIndex + 1) {
+                    return back()->withErrors(['error' => 'Vui lòng cập nhật trạng thái theo đúng trình tự!']);
                 }
             }
         }
+        // --- END LOGIC STATE MACHINE ---
 
         $don->update($data);
-        return redirect()->route('orders.show', $id)->with('success', 'Cập nhật đơn hàng thành công');
+        return redirect()->route('orders.show', $id)->with('success', 'Cập nhật trạng thái thành công: ' . $newStatus);
     }
 
     public function destroy($id)
     {
         $don = DonBanHang::findOrFail($id);
+        
+        // Chỉ cho phép xóa đơn hàng nếu nó đã hủy hoặc chưa xử lý xong
+        // Tốt nhất là Admin chỉ nên Hủy chứ không nên Xóa hẳn khỏi DB để lưu vết
+        // Nhưng nếu xóa thì phải hoàn kho.
+        
         $chiTiets = DonBanHangChiTiet::where('MaDon', $id)->get();
         
         foreach ($chiTiets as $ct) {
             $sp = SanPham::find($ct->MaSP);
             if ($sp) {
-                $sp->TonKho += $ct->SoLuong;
-                $sp->save();
+                // Chỉ hoàn kho nếu đơn hàng chưa bị hủy trước đó (vì nếu hủy rồi thì đã hoàn kho rồi)
+                if ($don->TrangThai !== 'đã_hủy') {
+                    $sp->TonKho += $ct->SoLuong;
+                    $sp->save();
+                }
             }
         }
         
+        // Xóa chi tiết trước (vì constraint FK)
         DB::table('CT_DON_BAN')->where('MaDon', $id)->delete();
         $don->delete();
-        return redirect()->route('orders.index')->with('success', 'Đơn hàng đã được xóa');
+        
+        return redirect()->route('orders.index')->with('success', 'Đơn hàng đã được xóa vĩnh viễn');
     }
 }

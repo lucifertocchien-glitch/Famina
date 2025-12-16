@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const productListContainer = document.getElementById('product-list');
         if (!productListContainer) {
             console.log('Không ở trang sản phẩm, bỏ qua tải sản phẩm.');
-            return; 
+            return;
         }
 
         try {
@@ -64,10 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${API_URL}/danh-muc`);
             if (!response.ok) throw new Error('Failed to load categories');
-            
+
             allCategories = await response.json();
             console.log('✅ Loaded categories:', allCategories.length);
-            
+
             // Render category filter
             renderCategoryFilter();
             // Render sidebar categories if present
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderProducts(filtered);
                 // scroll to products
                 const list = document.getElementById('product-list');
-                if (list) list.scrollIntoView({behavior: 'smooth'});
+                if (list) list.scrollIntoView({ behavior: 'smooth' });
             };
             container.appendChild(a);
         });
@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
 
-    
+
 });
 
 // -------------------------------------------------------------------
@@ -308,12 +308,12 @@ function toggleDropdown(event) {
 }
 
 // Close dropdown when clicking outside
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     const dropdown = document.getElementById('dropdownMenu');
     if (!dropdown) return; // Không làm gì nếu không có dropdown trên trang
-    
+
     const button = event.target.closest('button');
-    
+
     if (!dropdown.contains(event.target) && (!button || !button.textContent.includes('Danh mục sản phẩm'))) {
         dropdown.classList.remove('active');
     }
@@ -441,7 +441,7 @@ async function login() {
         }
 
         // --- LOGIC MỚI: XỬ LÝ PHÂN QUYỀN ---
-        
+
         // 1. Nếu Backend bảo đây là Admin/Staff -> Chuyển trang ngay
         if (data.redirect_url) {
             alert('Xin chào Quản lý ' + data.user.name + '. Đang chuyển đến trang quản trị...');
@@ -470,17 +470,17 @@ async function login() {
 // Update UI for Logged In User
 function updateUIForLoggedInUser() {
     if (!currentUser) return; // Không có user, không làm gì cả
-    
+
     // Tìm các phần tử này (có thể không tồn tại trên mọi trang)
     const userSection = document.getElementById('userSection');
     const userLoggedIn = document.getElementById('userLoggedIn');
     const userInitial = document.getElementById('userInitial');
     const userName = document.getElementById('userName');
     const userEmail = document.getElementById('userEmail');
-    
+
     if (userSection) userSection.classList.add('hidden');
     if (userLoggedIn) userLoggedIn.classList.remove('hidden');
-    
+
     const initial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U';
     if (userInitial) userInitial.textContent = initial;
     if (userName) userName.textContent = currentUser.name;
@@ -509,12 +509,12 @@ function toggleUserMenu() {
 }
 
 // Close user menu when clicking outside
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     const userMenu = document.getElementById('userMenu');
     if (!userMenu) return; // Không làm gì nếu không có menu
-    
+
     const userButton = event.target.closest('#userLoggedIn button');
-    
+
     if (!userMenu.contains(event.target) && !userButton) {
         userMenu.classList.add('hidden');
     }
@@ -524,7 +524,7 @@ document.addEventListener('click', function(event) {
 function logout() {
     currentUser = null;
     saveCurrentUser(); // Xóa khỏi localStorage
-    
+
     // Tìm các phần tử này
     const userSection = document.getElementById('userSection');
     const userLoggedIn = document.getElementById('userLoggedIn');
@@ -533,9 +533,9 @@ function logout() {
     if (userSection) userSection.classList.remove('hidden');
     if (userLoggedIn) userLoggedIn.classList.add('hidden');
     if (userMenu) userMenu.classList.add('hidden');
-    
+
     alert('Đăng xuất thành công!');
-    
+
     // Chuyển hướng về trang chủ
     // Kiểm tra xem chúng ta đang ở trang chủ hay trang con
     const isIndex = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/' + window.location.pathname.split('/')[1] + '/');
@@ -549,17 +549,17 @@ function logout() {
 // Update Account
 async function updateAccount(evt) {
     if (evt) evt.preventDefault();
-    
+
     if (!currentUser) {
         alert('Vui lòng đăng nhập trước.');
         return;
     }
-    
+
     const accountFullName = document.getElementById('accountFullName');
     const accountPhone = document.getElementById('accountPhone');
     const accountEmail = document.getElementById('accountEmail');
     const accountAddress = document.getElementById('accountAddress');
-    
+
     if (!accountFullName || !accountEmail) {
         alert('Không tìm thấy form fields.');
         return;
@@ -586,12 +586,12 @@ async function updateAccount(evt) {
 
     try {
         console.log('📤 Gửi request PUT /api/profile:', {
-            email: userEmail, 
-            name: newName, 
+            email: userEmail,
+            name: newName,
             phone: newPhone,
             address: newAddress
         });
-        
+
         // Gửi request PUT /api/profile để cập nhật backend
         const response = await fetch(`${API_URL}/profile`, {
             method: 'PUT',
@@ -624,7 +624,7 @@ async function updateAccount(evt) {
 
         // Cập nhật UI
         updateUIForLoggedInUser();
-        
+
         alert('✅ Cập nhật thông tin thành công!');
 
     } catch (error) {
@@ -668,7 +668,7 @@ function addToCart(productId, productName, price, image) {
 
     saveCart();
     updateCartBadge();
-    
+
     // Hiệu ứng UX nhỏ
     const btn = event.target; // Nút vừa bấm
     const oldText = btn.innerText;
@@ -698,8 +698,8 @@ function renderProducts(products) {
         const safeName = product.name.replace(/'/g, "\\'");
 
         // Sử dụng placeholder nếu không có ảnh
-        const imageUrl = product.image 
-            ? `http://127.0.0.1:8000/storage/${product.image}` 
+        const imageUrl = product.image
+            ? `http://127.0.0.1:8000/storage/${product.image}`
             : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f0f0f0" width="400" height="300"/%3E%3Ctext x="50%" y="50%" font-family="Arial" font-size="18" fill="%23999" text-anchor="middle" dominant-baseline="middle"%3E📦 No Image%3C/text%3E%3C/svg%3E';
 
         // Đây là code HTML cho 1 thẻ sản phẩm
@@ -873,7 +873,8 @@ function removeFromCart(index) {
 
 
 
-// --- CẬP NHẬT HÀM CHECKOUT ---
+// Thay thế function checkout cũ bằng đoạn này:
+
 async function checkout() {
     if (!currentUser) {
         alert('Vui lòng đăng nhập để thanh toán!');
@@ -886,17 +887,38 @@ async function checkout() {
         return;
     }
 
-    // Chuẩn bị dữ liệu chuẩn format mà OrderController (Bước 2) yêu cầu
+    // --- LOGIC MỚI: KIỂM TRA ĐỊA CHỈ ---
+    let shippingAddress = currentUser.address;
+
+    // Nếu chưa có địa chỉ hoặc địa chỉ quá ngắn, yêu cầu nhập
+    if (!shippingAddress || shippingAddress.length < 5) {
+        shippingAddress = prompt("Vui lòng nhập địa chỉ giao hàng chính xác:", "");
+
+        if (!shippingAddress || shippingAddress.trim().length < 5) {
+            alert("Bạn cần cung cấp địa chỉ giao hàng để tiếp tục!");
+            return; // Dừng lại, không gọi API
+        }
+
+        // Cập nhật tạm vào object currentUser và lưu lại localStorage
+        currentUser.address = shippingAddress;
+        saveCurrentUser();
+
+        // Cập nhật giao diện nếu đang ở trang account (không bắt buộc nhưng tốt cho UX)
+        updateUIForLoggedInUser();
+    }
+
+    // Chuẩn bị payload gửi đi (Thêm field address)
     const orderPayload = {
         email: currentUser.email,
+        address: shippingAddress, // <-- QUAN TRỌNG: Gửi địa chỉ lên Backend
         cart: cart.map(item => ({
-            product_code: String(item.product_code || item.id), // Fallback nếu thiếu
+            product_code: String(item.product_code || item.id),
             quantity: Number(item.quantity)
         }))
     };
 
     const btn = document.querySelector('button[onclick="checkout()"]');
-    if(btn) {
+    if (btn) {
         btn.innerText = "Đang xử lý...";
         btn.disabled = true;
     }
@@ -906,7 +928,6 @@ async function checkout() {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         };
-        // Gửi Token nếu có (Middleware ApiAuth sẽ bắt)
         if (currentUser.token) {
             headers['Authorization'] = 'Bearer ' + currentUser.token;
         }
@@ -925,25 +946,29 @@ async function checkout() {
 
         // Thành công
         alert('🎉 ' + result.message);
-        cart = []; // Xóa giỏ
+        cart = [];
         saveCart();
         updateCartDisplay();
         updateCartBadge();
-        
+
         // Chuyển hướng
-        window.location.href = window.location.pathname.includes('/pages/') ? 'orders.html' : 'pages/orders.html';
+        const isIndex = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/');
+        if (!isIndex) {
+            window.location.href = '../pages/orders.html';
+        } else {
+            window.location.href = './pages/orders.html';
+        }
 
     } catch (error) {
         console.error('Checkout error:', error);
         alert('❌ Đặt hàng thất bại: ' + error.message);
     } finally {
-        if(btn) {
+        if (btn) {
             btn.innerText = "Thanh toán (COD)";
             btn.disabled = false;
         }
     }
 }
-
 
 
 // --- PAGE LOAD INITIALIZATION ---
