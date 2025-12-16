@@ -9,58 +9,70 @@ use Illuminate\Support\Facades\DB;
 use App\Models\KhachHang;
 use App\Models\SanPham;
 use App\Models\DonBanHang;
-use App\Models\DonBanHangChiTiet;
 
 class OrderController extends Controller
 {
     public function store(Request $request)
     {
+        // 1. Validate dữ liệu từ JS
         $request->validate([
             'email' => 'required|email',
-            'cart' => 'required|array|min:1'
+            'cart' => 'required|array|min:1',
+            'cart.*.product_code' => 'required|string', // JS gửi key này
+            'cart.*.quantity' => 'required|integer|min:1'
         ]);
 
-        $user = KhachHang::where('Email', $request->email)->first();
-        if (!$user) return response()->json(['message' => 'Customer not found'], 404);
-
-        $cart = $request->cart;
+        // 2. Tìm khách hàng (Dùng email hoặc từ Token)
+        $user = $request->attributes->get('khachhang');
+        if (!$user) {
+            $user = KhachHang::where('Email', $request->email)->first();
+        }
+        
+        if (!$user) {
+            return response()->json(['message' => 'Khách hàng không tồn tại (Email chưa đăng ký)'], 404);
+        }
 
         DB::beginTransaction();
         try {
-            $maDon = 'DON'.time().Str::random(4);
+            // 3. Tạo Mã Đơn Hàng
+            $maDon = 'DON' . time() . strtoupper(Str::random(3));
 
-            $tongHang = 0;
-            // create order header
-            $order = DonBanHang::create([
+            $tongTien = 0;
+
+            // 4. Tạo Header Đơn Hàng (Trạng thái mặc định ChoXuLy)
+            // Lưu ý: Dùng DB::table để an toàn với Legacy DB
+            DB::table('DON_BAN_HANG')->insert([
                 'MaDon' => $maDon,
                 'NgayDat' => now(),
-                'TongTienHang' => 0,
-                'TongThueVAT' => 0,
-                'TongChietKhau' => 0,
+                'TongTienHang' => 0, // Sẽ update sau
                 'TongThanhToan' => 0,
                 'HinhThucTT' => 'COD',
-                'TrangThai' => 'ChoXuLy',
+                'TrangThai' => 'ChoXuLy', // Quan trọng: Để Admin thấy được
                 'LoaiDon' => 'BanLe',
                 'MaKH' => $user->MaKH,
-                'NguoiBan' => 'CUSTOMER'
+                'NguoiBan' => 'ONLINE'
             ]);
 
-            foreach ($cart as $item) {
-                $code = $item['product_code'];
-                $qty = intval($item['quantity']);
-                $product = SanPham::find($code);
+            // 5. Duyệt qua giỏ hàng và chèn chi tiết
+            foreach ($request->cart as $item) {
+                $maSP = $item['product_code'];
+                $qty = $item['quantity'];
+
+                $product = SanPham::where('MaSP', $maSP)->first();
+
                 if (!$product) {
-                    throw new \Exception("Product $code not found");
+                    throw new \Exception("Sản phẩm mã {$maSP} không tồn tại hoặc đã bị xóa.");
                 }
+
                 if ($product->TonKho < $qty) {
-                    throw new \Exception("Insufficient stock for $product->TenSP");
+                    throw new \Exception("Sản phẩm {$product->TenSP} chỉ còn {$product->TonKho} món.");
                 }
 
-                $donGia = (float)$product->GiaBan;
+                $donGia = $product->GiaBan;
                 $thanhTien = $donGia * $qty;
-                $tongHang += $thanhTien;
+                $tongTien += $thanhTien;
 
-                // insert detail using raw query for composite key
+                // Insert CT_DON_BAN
                 DB::table('CT_DON_BAN')->insert([
                     'MaDon' => $maDon,
                     'MaSP' => $product->MaSP,
@@ -71,81 +83,30 @@ class OrderController extends Controller
                     'ThanhTien' => $thanhTien
                 ]);
 
-                // decrement stock
-                DB::table('SAN_PHAM')
-                    ->where('MaSP', $product->MaSP)
-                    ->decrement('TonKho', $qty);
+                // Trừ kho
+                $product->decrement('TonKho', $qty);
             }
 
-            // finalize order totals
-            $order->TongTienHang = $tongHang;
-            $order->TongThanhToan = $tongHang; // no taxes in this simple flow
-            $order->save();
+            // 6. Cập nhật lại tổng tiền đơn hàng
+            DB::table('DON_BAN_HANG')
+                ->where('MaDon', $maDon)
+                ->update([
+                    'TongTienHang' => $tongTien,
+                    'TongThanhToan' => $tongTien
+                ]);
 
             DB::commit();
 
-            return response()->json(['message' => 'Order placed', 'order_id' => $maDon]);
+            return response()->json([
+                'message' => 'Đặt hàng thành công! Mã đơn: ' . $maDon,
+                'order_id' => $maDon
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Order error: ' . $e->getMessage());
-            return response()->json(['message' => $e->getMessage() ?: 'Error creating order', 'error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function updateStatus(Request $request, $id)
-    {
-        $request->validate(['status' => 'required|string']);
-        $order = DonBanHang::find($id);
-        if (!$order) return response()->json(['message' => 'Order not found'], 404);
-        $order->TrangThai = $request->status;
-        $order->save();
-        return response()->json(['message' => 'Status updated']);
-    }
-
-    public function myOrders(Request $request)
-    {
-        try {
-            $user = $request->attributes->get('khachhang');
-            if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
-
-            // Get orders for this customer
-            $orders = DonBanHang::where('MaKH', $user->MaKH)
-                ->orderBy('NgayDat', 'desc')
-                ->get();
-
-            if ($orders->isEmpty()) {
-                return response()->json(['orders' => []]);
-            }
-
-            // Get details for each order
-            $ordersWithDetails = $orders->map(function($order) {
-                $items = DB::table('CT_DON_BAN')
-                    ->join('SAN_PHAM', 'CT_DON_BAN.MaSP', '=', 'SAN_PHAM.MaSP')
-                    ->where('CT_DON_BAN.MaDon', $order->MaDon)
-                    ->select(
-                        'CT_DON_BAN.MaSP',
-                        'SAN_PHAM.TenSP as TenSanPham',
-                        'CT_DON_BAN.SoLuong',
-                        'CT_DON_BAN.DonGia',
-                        'CT_DON_BAN.ThanhTien'
-                    )
-                    ->get();
-
-                return [
-                    'MaDon' => $order->MaDon,
-                    'NgayDat' => $order->NgayDat,
-                    'TongTien' => $order->TongThanhToan,
-                    'TrangThai' => $order->TrangThai,
-                    'items' => $items
-                ];
-            });
-
-            return response()->json(['orders' => $ordersWithDetails]);
-        } catch (\Exception $e) {
-            \Log::error('Error fetching orders: ' . $e->getMessage());
-            return response()->json(['message' => 'Error fetching orders', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Lỗi đặt hàng: ' . $e->getMessage()
+            ], 500);
         }
     }
 }
-

@@ -639,7 +639,7 @@ async function updateAccount(evt) {
 }
 
 // Add to Cart
-// Hàm mới nhận 4 tham số, BẮT ĐẦU BẰNG 'productId'
+// --- CẬP NHẬT HÀM ADD TO CART ---
 function addToCart(productId, productName, price, image) {
     if (!currentUser) {
         alert('Vui lòng đăng nhập để mua hàng!');
@@ -647,28 +647,34 @@ function addToCart(productId, productName, price, image) {
         return;
     }
 
-    // Bây giờ chúng ta tìm sản phẩm dựa trên 'ID', không phải 'tên'
-    const existingItem = cart.find(item => item.id === productId); 
+    // Fix lỗi: Đảm bảo productId là chuỗi (vì Backend trả về String MaSP)
+    const code = String(productId);
+
+    // Tìm trong giỏ hàng xem có chưa
+    const existingItem = cart.find(item => String(item.product_code) === code);
 
     if (existingItem) {
         existingItem.quantity++;
     } else {
-        // Và quan trọng nhất, chúng ta LƯU ID VÀO GIỎ HÀNG
         cart.push({
-            id: productId, // legacy field
-            product_code: productId, // canonical key used by backend
+            id: code,           // Legacy
+            product_code: code, // Quan trọng: Dùng để gửi về Backend
             name: productName,
-            price: price,
+            price: Number(price),
             image: image,
             quantity: 1
         });
     }
 
-    saveCart(); // Lưu giỏ hàng vào localStorage
+    saveCart();
     updateCartBadge();
-    alert('Đã thêm sản phẩm vào giỏ hàng!');
+    
+    // Hiệu ứng UX nhỏ
+    const btn = event.target; // Nút vừa bấm
+    const oldText = btn.innerText;
+    btn.innerText = "✅ Đã thêm";
+    setTimeout(() => btn.innerText = oldText, 1000);
 }
-
 
 /**
  * Lấy một mảng sản phẩm và "vẽ" chúng ra HTML
@@ -865,31 +871,9 @@ function removeFromCart(index) {
     updateCartBadge();
 }
 
-// Checkout
-// function checkout() {
-//     if (!currentUser) {
-//         alert('Vui lòng đăng nhập để thanh toán!');
-//         showLoginModal();
-//         return;
-//     }
 
-//     if (cart.length === 0) {
-//         alert('Giỏ hàng trống!');
-//         return;
-//     }
 
-//     alert('Đặt hàng thành công! Cảm ơn bạn đã mua hàng tại FamilyMart.');
-//     cart = [];
-//     saveCart(); // Xóa giỏ hàng
-    
-//     // Cập nhật lại UI và chuyển trang đơn hàng
-//     updateCartDisplay();
-//     updateCartBadge();
-//     window.location.href = 'orders.html'; // Giả sử đang ở trong thư mục /pages
-// }
-
-// XÓA HÀM CHECKOUT CŨ VÀ THAY BẰNG HÀM MỚI NÀY
-
+// --- CẬP NHẬT HÀM CHECKOUT ---
 async function checkout() {
     if (!currentUser) {
         alert('Vui lòng đăng nhập để thanh toán!');
@@ -902,87 +886,61 @@ async function checkout() {
         return;
     }
 
-    // Normalize cart items: ensure every item has a product_code (fallback to id)
-    let missing = [];
-    cart = cart.map((item, idx) => {
-        if ((!item.product_code || item.product_code === '') && item.id) {
-            item.product_code = item.id;
-        }
-        if (!item.product_code || item.product_code === '') {
-            missing.push({ index: idx, item });
-        }
-        return item;
-    });
-
-    // Persist normalized cart so subsequent loads are fixed
-    if (missing.length === 0) saveCart();
-
-    if (missing.length > 0) {
-        console.error('Checkout aborted – missing product_code for items:', missing);
-        alert('Có sản phẩm trong giỏ chưa có mã sản phẩm. Vui lòng làm mới trang hoặc xóa và thêm lại sản phẩm.');
-        return;
-    }
-
-    // 1. Chuẩn bị dữ liệu để gửi đi
-    const orderData = {
-        email: currentUser.email, // Gửi email để backend tìm user
-        // Gửi product_code thay vì numeric id (backend được cập nhật để chấp nhận product_code)
-        cart: cart.map(item => ({ 
-            product_code: String(item.product_code),
+    // Chuẩn bị dữ liệu chuẩn format mà OrderController (Bước 2) yêu cầu
+    const orderPayload = {
+        email: currentUser.email,
+        cart: cart.map(item => ({
+            product_code: String(item.product_code || item.id), // Fallback nếu thiếu
             quantity: Number(item.quantity)
         }))
     };
 
-    // Debug: log outgoing payload to console so you can inspect in DevTools
-    console.log('Checkout orderData:', orderData);
+    const btn = document.querySelector('button[onclick="checkout()"]');
+    if(btn) {
+        btn.innerText = "Đang xử lý...";
+        btn.disabled = true;
+    }
 
     try {
-        // 2. Gọi API của Laravel bằng 'fetch'
         const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         };
-        if (currentUser && currentUser.token) {
+        // Gửi Token nếu có (Middleware ApiAuth sẽ bắt)
+        if (currentUser.token) {
             headers['Authorization'] = 'Bearer ' + currentUser.token;
         }
 
         const response = await fetch(`${API_URL}/orders`, {
             method: 'POST',
-            headers,
-            body: JSON.stringify(orderData)
+            headers: headers,
+            body: JSON.stringify(orderPayload)
         });
 
-        const result = await response.json(); // Nhận kết quả trả về
+        const result = await response.json();
 
         if (!response.ok) {
-            // Nếu backend trả về lỗi (ví dụ: lỗi 500)
-            throw new Error(result.message || result.error || 'Đã có lỗi xảy ra');
+            throw new Error(result.message || 'Lỗi không xác định từ server');
         }
 
-        // 3. Xử lý khi thành công
-        console.log('✅ Order placed successfully:', result);
-        alert('✅ ' + (result.message || 'Đặt hàng thành công!')); 
-        
-        // Clear cart from localStorage
-        cart = [];
+        // Thành công
+        alert('🎉 ' + result.message);
+        cart = []; // Xóa giỏ
         saveCart();
-        
-        // Update UI
         updateCartDisplay();
         updateCartBadge();
         
-        // Redirect to orders page (relative path for subpages)
-        const isIndex = window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('FmailyFontend/');
-        if (!isIndex) {
-            window.location.href = '../pages/orders.html'; // From /pages/cart.html
-        } else {
-            window.location.href = './pages/orders.html'; // From /index.html
-        }
+        // Chuyển hướng
+        window.location.href = window.location.pathname.includes('/pages/') ? 'orders.html' : 'pages/orders.html';
 
     } catch (error) {
-        // 4. Xử lý khi có lỗi mạng hoặc lỗi từ backend
-        console.error('❌ Checkout error:', error);
-        alert('❌ Lỗi: ' + error.message);
+        console.error('Checkout error:', error);
+        alert('❌ Đặt hàng thất bại: ' + error.message);
+    } finally {
+        if(btn) {
+            btn.innerText = "Thanh toán (COD)";
+            btn.disabled = false;
+        }
     }
 }
 

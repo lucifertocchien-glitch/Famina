@@ -10,44 +10,27 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        // Build query so we can support server-side search and category filters
-        $q = $request->query('q');
-        $category = $request->query('category');
+        $query = SanPham::query();
 
-        $query = SanPham::select(['MaSP','TenSP','GiaBan','HinhAnh','TonKho','MaDanhMuc']);
-
-        if ($q) {
-            $like = '%' . $q . '%';
-            $query->where(function ($sub) use ($like) {
-                $sub->where('TenSP', 'like', $like)
-                    ->orWhere('MaSP', 'like', $like);
-            });
+        // Xử lý tìm kiếm
+        if ($q = $request->query('q')) {
+            $query->where('TenSP', 'like', "%{$q}%")
+                  ->orWhere('MaSP', 'like', "%{$q}%");
         }
 
-        if ($category) {
-            $query->where('MaDanhMuc', $category);
-        }
-
-        $products = $query->get();
-
-        $result = $products->map(function($p){
-            // Normalize image path: stored values may include 'storage/' prefix or just 'products/...'
-            $imagePath = (string) $p->HinhAnh;
-            if (strpos($imagePath, 'storage/') === 0) {
-                $imagePath = substr($imagePath, 8);
-            }
-
-            // Ensure we return path relative to storage (frontend will prefix with /storage/)
+        // Map dữ liệu Legacy (Tiếng Việt) sang chuẩn JSON cho Frontend
+        $products = $query->get()->map(function($p) {
             return [
-                'product_code' => $p->MaSP,
+                'id' => $p->MaSP,            // ID duy nhất
+                'product_code' => $p->MaSP,  // Frontend cần key này
                 'name' => $p->TenSP,
-                'price' => (float) $p->GiaBan,
-                'image' => $imagePath,
-                'stock' => (int) $p->TonKho,
-                'category_id' => $p->MaDanhMuc
+                'price' => (float)$p->GiaBan,
+                'image' => $p->HinhAnh,
+                'category_id' => $p->MaDanhMuc,
+                'in_stock' => (int)$p->TonKho
             ];
         });
 
-        return response()->json($result);
+        return response()->json($products);
     }
 }
