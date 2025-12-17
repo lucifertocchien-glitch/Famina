@@ -38,7 +38,13 @@ class PromotionService
             if ($ends && $now->gt($ends)) continue;
 
             // match by explicit product list
-            if (!empty($p['products']) && in_array($maSP, $p['products'])) {
+            if (!empty($p['products'])) {
+                if (in_array($maSP, $p['products'])) {
+                    $found[] = $p;
+                    continue;
+                }
+            } else {
+                // No product list means apply to all
                 $found[] = $p;
                 continue;
             }
