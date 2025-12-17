@@ -971,6 +971,35 @@ async function checkout() {
 }
 
 
-// --- PAGE LOAD INITIALIZATION ---
-// ĐOẠN NÀY ĐÃ BỊ XÓA (VÌ ĐÃ ĐƯA LÊN PHẦN LOADER Ở TRÊN CÙNG)
-// document.addEventListener('DOMContentLoaded', () => { ... });
+
+// Hàm này được gọi khi bấm nút "Tìm kiếm"
+function triggerSearch() {
+    const input = document.getElementById('searchInput');
+    if (input) {
+        const query = input.value;
+        if(query.trim() === "") {
+            alert("Vui lòng nhập từ khóa để tìm kiếm!");
+            return;
+        }
+        searchProducts(query); // Gọi lại hàm search có sẵn của bạn
+    }
+}
+
+// Bổ sung: Bắt sự kiện phím Enter ngay trong ô input (để chắc chắn)
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        // Tìm kiếm khi gõ (Real-time) - Code cũ của bạn đã có, giữ nguyên
+        searchInput.addEventListener('input', (e) => {
+            searchProducts(e.target.value);
+        });
+
+        // Tìm kiếm khi nhấn Enter
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Chặn reload trang
+                triggerSearch();
+            }
+        });
+    }
+});
