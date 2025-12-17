@@ -13,7 +13,7 @@ class KhachHang extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'MaKH', 'TenKH', 'SDT', 'DiaChi', 'Email', 'MatKhau', 'DiemTichLuy', 'api_token'
+        'MaKH', 'TenKH', 'SDT', 'DiaChi', 'Email', 'MatKhau', 'DiemTichLuy', 'api_token', 'LoaiKH', 'TongTieuDung', 'KhuyenMaiUuTien'
     ];
 
     protected $hidden = ['MatKhau', 'api_token'];

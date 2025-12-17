@@ -8,11 +8,15 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Middleware\ApiAuth;
+use App\Http\Controllers\Admin\PromotionController;
+use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\SupplierController;
 
 Route::group(['middleware' => ['addcors']], function () {
     Route::get('/danh-muc', [CategoryController::class, 'index']);
     Route::get('/san-pham', [ProductController::class, 'index']);
     Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/promotions', [ProductController::class, 'promotions']);
 
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
@@ -25,6 +29,13 @@ Route::group(['middleware' => ['addcors']], function () {
         Route::post('/orders', [OrderController::class, 'store']);
         Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
         Route::get('/orders/my', [OrderController::class, 'myOrders']);
+    });
+
+    // Admin routes (assume admin auth later)
+    Route::prefix('admin')->group(function () {
+        Route::apiResource('promotions', PromotionController::class);
+        Route::apiResource('customers', CustomerController::class)->except(['store']);
+        Route::apiResource('suppliers', SupplierController::class)->except(['store']);
     });
 
     // handle preflight for any api endpoint

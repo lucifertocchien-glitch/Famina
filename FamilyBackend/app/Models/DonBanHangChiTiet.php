@@ -12,7 +12,7 @@ class DonBanHangChiTiet extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'MaDon', 'MaSP', 'SoLuong', 'DonGia', 'ThueVAT', 'ChietKhau', 'ThanhTien'
+        'MaDon', 'MaSP', 'SoLuong', 'DonGia', 'ThueVAT', 'ChietKhau', 'ThanhTien', 'MaKM_ApDung', 'SoTienGiam'
     ];
 
     public function getKeyName()

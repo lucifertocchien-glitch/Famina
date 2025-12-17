@@ -84,6 +84,31 @@ class CartController extends Controller
             ]);
         }
 
+        // Recompute promotions and apply discounts to cart items
+        try {
+            $promoService = new \App\Services\PromotionService();
+            $items = $cart->chiTiet()->get()->map(function($it) {
+                return [
+                    'MaSP' => $it->MaSP,
+                    'SoLuong' => $it->SoLuong,
+                    'DonGia' => $it->DonGia
+                ];
+            })->toArray();
+
+            $discounts = $promoService->evaluateForCart($user, $items);
+
+            foreach ($cart->chiTiet as $it) {
+                $ma = $it->MaSP;
+                $discountInfo = $discounts[$ma] ?? ['SoTienGiam' => 0.00, 'MaKM_ApDung' => null];
+                $it->SoTienGiam = $discountInfo['SoTienGiam'];
+                $it->MaKM_ApDung = $discountInfo['MaKM_ApDung'];
+                $it->ThanhTien = ($it->DonGia * $it->SoLuong) - $it->SoTienGiam;
+                $it->save();
+            }
+        } catch (\Exception $e) {
+            Log::error('Promotion apply failed', ['error' => $e->getMessage()]);
+        }
+
         // Update totals
         $this->updateCartTotals($cart);
 
