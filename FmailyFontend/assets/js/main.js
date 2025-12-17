@@ -596,12 +596,16 @@ async function updateAccount(evt) {
         });
 
         // Gửi request PUT /api/profile để cập nhật backend
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+        if (currentUser && currentUser.token) {
+            headers['Authorization'] = `Bearer ${currentUser.token}`;
+        }
         const response = await fetch(`${API_URL}/profile`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({
                 email: userEmail,
                 name: newName,
@@ -905,6 +909,31 @@ async function checkout() {
         // Cập nhật tạm vào object currentUser và lưu lại localStorage
         currentUser.address = shippingAddress;
         saveCurrentUser();
+
+        // Cập nhật địa chỉ lên DB để lần sau không cần nhập lại
+        try {
+            const updateHeaders = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            };
+            if (currentUser.token) {
+                updateHeaders['Authorization'] = `Bearer ${currentUser.token}`;
+            }
+            await fetch(`${API_URL}/profile`, {
+                method: 'PUT',
+                headers: updateHeaders,
+                body: JSON.stringify({
+                    email: currentUser.email,
+                    name: currentUser.name,
+                    phone: currentUser.phone,
+                    address: shippingAddress
+                })
+            });
+            console.log('Đã cập nhật địa chỉ lên DB');
+        } catch (updateError) {
+            console.warn('Không thể cập nhật địa chỉ lên DB:', updateError);
+            // Không alert vì không muốn làm gián đoạn checkout
+        }
 
         // Cập nhật giao diện nếu đang ở trang account (không bắt buộc nhưng tốt cho UX)
         updateUIForLoggedInUser();

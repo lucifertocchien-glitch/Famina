@@ -105,9 +105,38 @@ class AuthController extends Controller
                 'MaKH' => $user->MaKH,
                 'name' => $user->TenKH,
                 'email' => $user->Email,
-                'phone' => $user->SDT
+                'phone' => $user->SDT,
+                'address' => $user->DiaChi
             ],
             'token' => $user->api_token
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->attributes->get('khachhang');
+
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|unique:KHACH_HANG,Email,' . $user->MaKH . ',MaKH',
+            'phone' => 'required|numeric|digits_between:9,11|unique:KHACH_HANG,SDT,' . $user->MaKH . ',MaKH',
+            'address' => 'nullable|string|max:255'
+        ]);
+
+        $user->TenKH = $request->name;
+        $user->Email = $request->email;
+        $user->SDT = $request->phone;
+        $user->DiaChi = $request->address;
+        $user->save();
+
+        return response()->json([
+            'message' => 'Cập nhật thông tin thành công',
+            'user' => [
+                'name' => $user->TenKH,
+                'email' => $user->Email,
+                'phone' => $user->SDT,
+                'address' => $user->DiaChi
+            ]
         ]);
     }
 }

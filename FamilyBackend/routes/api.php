@@ -29,6 +29,8 @@ Route::group(['middleware' => ['addcors']], function () {
         Route::post('/orders', [OrderController::class, 'store']);
         Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
         Route::get('/orders/my', [OrderController::class, 'myOrders']);
+
+        Route::put('/profile', [AuthController::class, 'updateProfile']);
     });
 
     // Admin routes (assume admin auth later)
