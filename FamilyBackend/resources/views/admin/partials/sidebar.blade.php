@@ -34,6 +34,24 @@
                 Vận chuyển
             </a>
         </li>
+        <li>
+            <a href="{{ route('promotions.index') }}" class="nav-link {{ request()->routeIs('promotions.*') ? 'active' : 'text-white' }}">
+                <i class="fas fa-tags me-2"></i>
+                Khuyến mãi
+            </a>
+        </li>
+        <li>
+            <a href="{{ route('customers.index') }}" class="nav-link {{ request()->routeIs('customers.*') ? 'active' : 'text-white' }}">
+                <i class="fas fa-user-friends me-2"></i>
+                Khách hàng
+            </a>
+        </li>
+        <li>
+            <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->routeIs('suppliers.*') ? 'active' : 'text-white' }}">
+                <i class="fas fa-building me-2"></i>
+                Nhà cung cấp
+            </a>
+        </li>
     </ul>
     <hr>
     <div class="dropdown">

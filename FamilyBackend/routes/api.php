@@ -32,7 +32,7 @@ Route::group(['middleware' => ['addcors']], function () {
     });
 
     // Admin routes (assume admin auth later)
-    Route::prefix('admin')->group(function () {
+    Route::prefix('admin')->as('api.')->group(function () {
         Route::apiResource('promotions', PromotionController::class);
         Route::apiResource('customers', CustomerController::class)->except(['store']);
         Route::apiResource('suppliers', SupplierController::class)->except(['store']);
