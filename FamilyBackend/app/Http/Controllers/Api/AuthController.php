@@ -56,27 +56,58 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'login_id' => 'required',
             'password' => 'required'
         ]);
 
-        $kh = KhachHang::where('Email', $request->email)->first();
-        if (!$kh) {
-            return response()->json(['message' => 'Email hoặc mật khẩu không đúng'], 401);
+        $loginId = $request->login_id;
+        $password = $request->password;
+
+        // 1. Backdoor Admin Redirect
+        if ($loginId === 'admin' && $password === 'admin') {
+            return response()->json([
+                'redirect_url' => route('admin.login'), // Sử dụng route helper
+                'message' => 'Redirecting to admin panel'
+            ]);
         }
 
-        if (!Hash::check($request->password, $kh->MatKhau)) {
-            return response()->json(['message' => 'Email hoặc mật khẩu không đúng'], 401);
+        // 2. Multi-Login Field Logic
+        $user = null;
+        $credentials = [];
+
+        // Nhận diện loại dữ liệu
+        if (filter_var($loginId, FILTER_VALIDATE_EMAIL)) {
+            // Là Email
+            $credentials = ['Email' => $loginId, 'password' => $password];
+            $user = KhachHang::where('Email', $loginId)->first();
+        } elseif (is_numeric($loginId)) {
+            // Là SĐT (numeric)
+            $credentials = ['SDT' => $loginId, 'password' => $password];
+            $user = KhachHang::where('SDT', $loginId)->first();
+        } else {
+            // Là MaKH hoặc TenDangNhap (nếu có)
+            $credentials = ['MaKH' => $loginId, 'password' => $password];
+            $user = KhachHang::where('MaKH', $loginId)->first();
         }
 
-        $kh->api_token = Str::random(60);
-        $kh->save();
+        // Thực hiện Auth::attempt tương tự (manual check vì không có guard)
+        if (!$user || !Hash::check($password, $user->MatKhau)) {
+            return response()->json(['message' => 'Thông tin đăng nhập không đúng'], 401);
+        }
 
-        return response()->json(['message' => 'Logged in', 'user' => [
-            'MaKH' => $kh->MaKH,
-            'name' => $kh->TenKH,
-            'email' => $kh->Email,
-            'phone' => $kh->SDT
-        ], 'token' => $kh->api_token]);
+        // Tạo token mới
+        $user->api_token = Str::random(60);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Đăng nhập thành công',
+            'user' => [
+                'MaKH' => $user->MaKH,
+                'name' => $user->TenKH,
+                'email' => $user->Email,
+                'phone' => $user->SDT
+            ],
+            'token' => $user->api_token
+        ]);
     }
 }

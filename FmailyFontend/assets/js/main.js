@@ -408,11 +408,13 @@ async function register() {
 
 // --- Login Function (GỌI API & PHÂN QUYỀN) ---
 async function login() {
-    const email = document.getElementById('loginEmail').value;
+    const loginId = document.getElementById('loginIdentifier').value;
     const password = document.getElementById('loginPassword').value;
 
-    if (!email || !password) {
-        alert('Vui lòng nhập Email và Mật khẩu.');
+    console.log('Login attempt:', loginId, password); // Debug
+
+    if (!loginId || !password) {
+        alert('Vui lòng nhập Tài khoản và Mật khẩu.');
         return;
     }
 
@@ -429,24 +431,26 @@ async function login() {
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
-                email: email,
+                login_id: loginId,
                 password: password
             })
         });
 
         const data = await response.json();
 
+        console.log('Login response:', data); // Debug
+
         if (!response.ok) {
-            throw new Error(data.message || 'Email hoặc mật khẩu không đúng.');
+            throw new Error(data.message || 'Tài khoản hoặc mật khẩu không đúng.');
         }
 
         // --- LOGIC MỚI: XỬ LÝ PHÂN QUYỀN ---
 
         // 1. Nếu Backend bảo đây là Admin/Staff -> Chuyển trang ngay
         if (data.redirect_url) {
-            alert('Xin chào Quản lý ' + data.user.name + '. Đang chuyển đến trang quản trị...');
+            alert('Xin chào Quản lý. Đang chuyển đến trang quản trị...');
             // Chuyển hướng sang trang Admin (Backend Laravel)
-            window.location.href = 'http://127.0.0.1:8000' + data.redirect_url;
+            window.location.href = data.redirect_url;
             return;
         }
 
@@ -456,7 +460,6 @@ async function login() {
         saveCurrentUser();
         updateUIForLoggedInUser();
         closeAuthModal();
-        alert('Xin chào, ' + currentUser.name + '!');
 
     } catch (error) {
         console.error('Login Error:', error);
