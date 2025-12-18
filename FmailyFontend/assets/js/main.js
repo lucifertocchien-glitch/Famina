@@ -1,5 +1,5 @@
 // --- CẤU HÌNH API ---
-const API_URL = 'http://127.0.0.1:8000/api'; // Địa chỉ Backend của bạn
+const API_URL = 'https://famina.page.gd/api'; // Địa chỉ Backend của bạn
 
 // Global state for categories and products
 let allProducts = [];

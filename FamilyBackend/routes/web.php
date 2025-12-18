@@ -12,8 +12,8 @@ use App\Http\Controllers\Admin\WebCustomerController;
 use App\Http\Controllers\Admin\WebSupplierController;
 
 Route::get('/', function () {
-	return redirect()->route('staff.index');
-});
+    return view('shop_home'); // Gọi file shop_home.blade.php vừa tạo
+})->name('home');
 
 // Auth routes
 Route::get('/admin/login', [AdminLoginController::class, 'showLoginForm'])->name('admin.login');
