@@ -119,4 +119,32 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    public function myOrders(Request $request)
+    {
+        $user = $request->attributes->get('khachhang');
+
+        if (!$user) {
+            return response()->json(['message' => 'Không tìm thấy thông tin khách hàng'], 401);
+        }
+
+        // Lấy danh sách đơn hàng của khách hàng
+        $orders = DB::table('DON_BAN_HANG')
+            ->where('MaKH', $user->MaKH)
+            ->orderBy('NgayDat', 'desc')
+            ->get();
+
+        // Lấy chi tiết cho mỗi đơn hàng
+        foreach ($orders as $order) {
+            $order->items = DB::table('CT_DON_BAN')
+                ->join('SAN_PHAM', 'CT_DON_BAN.MaSP', '=', 'SAN_PHAM.MaSP')
+                ->where('CT_DON_BAN.MaDon', $order->MaDon)
+                ->select('CT_DON_BAN.*', 'SAN_PHAM.TenSP as TenSanPham')
+                ->get();
+        }
+
+        return response()->json([
+            'orders' => $orders
+        ]);
+    }
 }
